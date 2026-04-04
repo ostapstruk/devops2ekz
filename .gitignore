@@ -1,0 +1,10 @@
+# Ключі та секрети
+exam_key
+exam_key.pub
+*.pem
+
+# Terraform локальні файли
+.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan
