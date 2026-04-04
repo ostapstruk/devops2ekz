@@ -68,7 +68,7 @@ jobs:
             helm upgrade --install release-app . -n release --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=1.0.0 --set service.port=8003
 
             # Налаштування Port-Forward як служб Systemd
-            sudo bash -c 'cat > /etc/systemd/system/pf-dev.service <<EOF
+            sudo tee /etc/systemd/system/pf-dev.service > /dev/null << 'EOF'
             [Unit]
             Description=Port Forward Dev
             [Service]
@@ -77,9 +77,9 @@ jobs:
             Restart=always
             [Install]
             WantedBy=multi-user.target
-            EOF'
+            EOF
 
-            sudo bash -c 'cat > /etc/systemd/system/pf-release.service <<EOF
+            sudo tee /etc/systemd/system/pf-release.service > /dev/null << 'EOF'
             [Unit]
             Description=Port Forward Release
             [Service]
@@ -88,7 +88,7 @@ jobs:
             Restart=always
             [Install]
             WantedBy=multi-user.target
-            EOF'
+            EOF
 
             sudo systemctl daemon-reload
             sudo systemctl restart pf-dev pf-release
