@@ -9,3 +9,8 @@ variable "region" {
   type        = string
   default     = "eu-central-1"
 }
+
+variable "public_key" {
+  description = "SSH Public Key for EC2 instance"
+  type        = string
+}
