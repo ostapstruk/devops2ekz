@@ -6,7 +6,7 @@ terraform {
     }
   }
   backend "s3" {
-    bucket = "terraform-state-struk-bucket--eun1-az1--x-s3" # Цей бакет треба створити в AWS вручну!
+    bucket = "terraform-state-struk-bucket"
     key    = "task1/terraform.tfstate"
     region = "eu-central-1"
   }
