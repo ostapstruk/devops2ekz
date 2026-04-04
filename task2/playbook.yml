@@ -1,10 +1,12 @@
 ---
 - name: Встановлення Kubernetes, Minikube та Helm
   hosts: all
-  become: yes # Виконуємо з правами адміністратора (sudo)
+  become: yes
   tasks:
     - name: Оновлення кешу apt
-      apt: update_cache=yes
+      apt:
+        update_cache: yes
+      check_mode: false # ВАЖЛИВО: змушує реально оновити кеш навіть під час Dry-Run
 
     - name: Встановлення базових залежностей (Docker, curl, conntrack)
       apt:
