@@ -65,6 +65,7 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# Додавання SSH ключа
 resource "aws_key_pair" "deployer" {
   key_name   = "${var.surname}-key"
   public_key = var.public_key
@@ -76,7 +77,7 @@ resource "aws_instance" "node" {
   instance_type          = "t3.medium"
   subnet_id              = aws_subnet.main_subnet.id
   vpc_security_group_ids = [aws_security_group.firewall.id]
-  key_name = aws_key_pair.deployer.key_name
+  key_name               = aws_key_pair.deployer.key_name
 
   tags = {
     Name = "${var.surname}-node"
@@ -96,6 +97,7 @@ resource "random_id" "bucket_id" {
   byte_length = 4
 }
 
+# Вивід IP-адреси для Ansible
 output "node_ip" {
   value = aws_instance.node.public_ip
 }
