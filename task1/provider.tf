@@ -8,7 +8,7 @@ terraform {
   backend "s3" {
     bucket = "terraform-state-struk-bucket"
     key    = "task1/terraform.tfstate"
-    region = "eu-central-1"
+    region = "eu-north-1"
   }
 }
 
