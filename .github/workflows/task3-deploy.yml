@@ -1,0 +1,91 @@
+name: Task 3 - CI/CD Deploy App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Target App Repo
+        uses: actions/checkout@v4
+        with:
+          repository: YulianSalo/devops-exam-pt2
+          fetch-depth: 0
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Dev (develop branch)
+        run: |
+          git checkout develop
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/exam-app:develop .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/exam-app:develop
+
+      - name: Build and Push Release (1.0.0 tag)
+        run: |
+          git checkout 1.0.0
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/exam-app:1.0.0 .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/exam-app:1.0.0
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout our infra repo
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH and Setup Port Forward
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 1. Завантажуємо наші Helm файли на ВМ
+            if [ ! -d "devops2ekz" ]; then
+              git clone https://github.com/${{ github.repository }} devops2ekz
+            fi
+            cd devops2ekz
+            git pull origin main
+            cd task3/helm-chart
+            
+            # 2. Деплой Dev середовища (з перевіркою dry-run)
+            kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
+            helm upgrade --install dev-app . -n dev --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=develop --set service.port=8002 --dry-run
+            helm upgrade --install dev-app . -n dev --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=develop --set service.port=8002
+
+            # 3. Деплой Release середовища (з перевіркою dry-run)
+            kubectl create namespace release --dry-run=client -o yaml | kubectl apply -f -
+            helm upgrade --install release-app . -n release --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=1.0.0 --set service.port=8003 --dry-run
+            helm upgrade --install release-app . -n release --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=1.0.0 --set service.port=8003
+
+            # 4. Налаштування Port-Forward як служб Systemd для надійності
+            sudo bash -c 'cat > /etc/systemd/system/pf-dev.service <<EOF
+            [Unit]
+            Description=Port Forward Dev
+            [Service]
+            User=ubuntu
+            ExecStart=/usr/local/bin/kubectl port-forward svc/dev-app-service 8002:8002 -n dev --address 0.0.0.0
+            Restart=always
+            [Install]
+            WantedBy=multi-user.target
+            EOF'
+
+            sudo bash -c 'cat > /etc/systemd/system/pf-release.service <<EOF
+            [Unit]
+            Description=Port Forward Release
+            [Service]
+            User=ubuntu
+            ExecStart=/usr/local/bin/kubectl port-forward svc/release-app-service 8003:8003 -n release --address 0.0.0.0
+            Restart=always
+            [Install]
+            WantedBy=multi-user.target
+            EOF'
+
+            sudo systemctl daemon-reload
+            sudo systemctl restart pf-dev pf-release
+            sudo systemctl enable pf-dev pf-release

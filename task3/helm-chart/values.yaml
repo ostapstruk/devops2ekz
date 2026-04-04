@@ -1,0 +1,9 @@
+image:
+  repository: myuser/exam-app
+  tag: develop
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8002
+  targetPort: 8000 
