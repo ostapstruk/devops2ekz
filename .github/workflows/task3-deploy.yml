@@ -38,32 +38,36 @@ jobs:
       - name: Checkout our infra repo
         uses: actions/checkout@v4
 
+      - name: Copy Helm Chart to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "task3"
+          target: "/home/ubuntu/devops2ekz"
+
       - name: Deploy via SSH and Setup Port Forward
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true # Зупинка конвеєра при будь-якій помилці!
           script: |
-            # 1. Завантажуємо наші Helm файли на ВМ
-            if [ ! -d "devops2ekz" ]; then
-              git clone https://github.com/${{ github.repository }} devops2ekz
-            fi
-            cd devops2ekz
-            git pull origin main
-            cd task3/helm-chart
+            cd /home/ubuntu/devops2ekz/task3/helm-chart
             
-            # 2. Деплой Dev середовища (з перевіркою dry-run)
+            # Деплой Dev середовища (з перевіркою dry-run)
             kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
             helm upgrade --install dev-app . -n dev --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=develop --set service.port=8002 --dry-run
             helm upgrade --install dev-app . -n dev --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=develop --set service.port=8002
 
-            # 3. Деплой Release середовища (з перевіркою dry-run)
+            # Деплой Release середовища (з перевіркою dry-run)
             kubectl create namespace release --dry-run=client -o yaml | kubectl apply -f -
             helm upgrade --install release-app . -n release --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=1.0.0 --set service.port=8003 --dry-run
             helm upgrade --install release-app . -n release --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/exam-app --set image.tag=1.0.0 --set service.port=8003
 
-            # 4. Налаштування Port-Forward як служб Systemd для надійності
+            # Налаштування Port-Forward як служб Systemd
             sudo bash -c 'cat > /etc/systemd/system/pf-dev.service <<EOF
             [Unit]
             Description=Port Forward Dev
