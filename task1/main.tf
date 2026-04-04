@@ -67,9 +67,9 @@ data "aws_ami" "ubuntu" {
 
 # 3. ВМ
 resource "aws_instance" "node" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.medium"
-  subnet_id     = aws_subnet.main_subnet.id
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = "t3.medium"
+  subnet_id              = aws_subnet.main_subnet.id
   vpc_security_group_ids = [aws_security_group.firewall.id]
 
   tags = {
@@ -80,7 +80,7 @@ resource "aws_instance" "node" {
 # 4. Сховище для обʼєктів (бакет)
 resource "aws_s3_bucket" "exam_bucket" {
   bucket = "${lower(var.surname)}-bucket-${random_id.bucket_id.hex}"
-  
+
   tags = {
     Name = "${var.surname}-bucket"
   }
