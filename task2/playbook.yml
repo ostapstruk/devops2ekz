@@ -24,8 +24,14 @@
         name: ubuntu
         groups: docker
         append: yes
-      # Ігноруємо помилку під час Dry-Run, бо група ще не створена фізично
-      ignore_errors: "{{ ansible_check_mode }}" 
+      ignore_errors: "{{ ansible_check_mode }}"
+
+    # ЦЕЙ КРОК ВИПРАВЛЯЄ ПОМИЛКУ ДОСТУПУ ДО DOCKER
+    - name: Надання прав на Docker сокет
+      file:
+        path: /var/run/docker.sock
+        mode: '0666'
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Завантаження Minikube
       get_url:
@@ -55,6 +61,8 @@
       command: minikube start --driver=docker
       register: minikube_start
       changed_when: "'Done' in minikube_start.stdout"
+      # Ігноруємо помилки у Dry-Run, бо Docker ще не "завівся" по-справжньому
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Налаштування kubectl proxy (Проксі до Minikube)
       copy:
@@ -78,5 +86,4 @@
         state: started
         enabled: yes
         daemon_reload: yes
-      # Ігноруємо помилку під час Dry-Run, бо файл служби ще не створений фізично
       ignore_errors: "{{ ansible_check_mode }}"
