@@ -6,7 +6,7 @@
     - name: Оновлення кешу apt
       apt:
         update_cache: yes
-      check_mode: false # ВАЖЛИВО: змушує реально оновити кеш навіть під час Dry-Run
+      check_mode: false
 
     - name: Встановлення базових залежностей (Docker, curl, conntrack)
       apt:
@@ -24,6 +24,8 @@
         name: ubuntu
         groups: docker
         append: yes
+      # Ігноруємо помилку під час Dry-Run, бо група ще не створена фізично
+      ignore_errors: "{{ ansible_check_mode }}" 
 
     - name: Завантаження Minikube
       get_url:
@@ -76,3 +78,5 @@
         state: started
         enabled: yes
         daemon_reload: yes
+      # Ігноруємо помилку під час Dry-Run, бо файл служби ще не створений фізично
+      ignore_errors: "{{ ansible_check_mode }}"
