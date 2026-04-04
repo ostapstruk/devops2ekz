@@ -1,0 +1,56 @@
+name: Ansible CI/CD Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'task2/**' # Запускається тільки при змінах у папці task2
+
+jobs:
+  ansible:
+    name: "Ansible Dry-Run & Deploy"
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: "eu-central-1"
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Динамічно (параметрично) отримуємо IP-адресу ВМ з Terraform
+      - name: Get EC2 IP from Terraform
+        id: tf-output
+        run: |
+          cd task1
+          terraform init
+          echo "NODE_IP=$(terraform output -raw node_ip)" >> $GITHUB_ENV
+
+      # Налаштовуємо SSH доступ, використовуючи прихований секрет
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.NODE_IP }} >> ~/.ssh/known_hosts
+
+      # Перевірка правильності (Dry-run). Конвеєр впаде, якщо тут буде помилка.
+      - name: Ansible Dry Run (Check Mode)
+        run: |
+          cd task2
+          ansible-playbook -i "${{ env.NODE_IP }}," -u ubuntu playbook.yml --check
+
+      # Реальне встановлення (відбудеться тільки якщо Dry-run успішний)
+      - name: Ansible Deploy
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd task2
+          ansible-playbook -i "${{ env.NODE_IP }}," -u ubuntu playbook.yml
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"

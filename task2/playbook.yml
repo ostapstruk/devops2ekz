@@ -1,0 +1,76 @@
+---
+- name: Встановлення Kubernetes, Minikube та Helm
+  hosts: all
+  become: yes # Виконуємо з правами адміністратора (sudo)
+  tasks:
+    - name: Оновлення кешу apt
+      apt: update_cache=yes
+
+    - name: Встановлення базових залежностей (Docker, curl, conntrack)
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - conntrack
+          - docker.io
+        state: present
+
+    - name: Додавання користувача ubuntu до групи docker
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Завантаження Minikube
+      get_url:
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: '0755'
+
+    - name: Завантаження kubectl
+      get_url:
+        url: https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+
+    - name: Завантаження та розпакування Helm
+      unarchive:
+        src: https://get.helm.sh/helm-v3.15.0-linux-amd64.tar.gz
+        dest: /tmp
+        remote_src: yes
+
+    - name: Встановлення Helm
+      command: mv /tmp/linux-amd64/helm /usr/local/bin/helm
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Запуск Minikube (від імені користувача ubuntu)
+      become: no
+      command: minikube start --driver=docker
+      register: minikube_start
+      changed_when: "'Done' in minikube_start.stdout"
+
+    - name: Налаштування kubectl proxy (Проксі до Minikube)
+      copy:
+        dest: /etc/systemd/system/kubectl-proxy.service
+        content: |
+          [Unit]
+          Description=Kubectl Proxy
+          After=network.target
+
+          [Service]
+          User=ubuntu
+          ExecStart=/usr/local/bin/kubectl proxy --address='0.0.0.0' --port=8001 --accept-hosts='^.*'
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Увімкнення та запуск служби kubectl proxy
+      systemd:
+        name: kubectl-proxy
+        state: started
+        enabled: yes
+        daemon_reload: yes
