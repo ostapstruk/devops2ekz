@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'task2/**' # Запускається тільки при змінах у папці task2
+  workflow_dispatch: 
 
 jobs:
   ansible:

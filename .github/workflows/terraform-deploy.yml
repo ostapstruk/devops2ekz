@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'task1/**'
+  workflow_dispatch: 
 
 jobs:
   terraform:
